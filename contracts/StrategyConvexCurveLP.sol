@@ -47,7 +47,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
     using Address for address;
     using SafeMath for uint256;
 
-    address public curve = 0x2dded6Da1BF5DBdF597C45fcFaa3194e53EcfeAF; // Curve Iron Bank Pool, want to be able to set this for other strats. need this for buying more pool tokens
+    address public curve = 0xc5424B857f758E906013F3555Dad202e4bdB4567; // Curve sETH Pool, need this for buying more pool tokens
     address public crvRouter = address(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F); // default to sushiswap, more CRV liquidity there
     address public constant voter = address(0xF147b8125d2ef93FB6965Db97D6746952a133934); // Yearn's veCRV voter
     address[] public crvPath;
@@ -64,7 +64,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
     uint256 public tendsPerHarvest = 0; // how many tends we call before we harvest. set to 0 to never call tends.
     uint256 internal harvestNow = 0; // 0 for false, 1 for true if we are mid-harvest
 
-    uint256 public keepCRV = 1500;
+    uint256 public keepCRV = 1000;
     uint256 public constant FEE_DENOMINATOR = 10000; // with this and the above, sending 15% of our CRV yield to our voter
 
     ICrvV3 public constant crv =
@@ -73,12 +73,6 @@ contract StrategyConvexCurveLP is BaseStrategy {
         IERC20(address(0xD533a949740bb3306d119CC777fa900bA034cd52));
     IERC20 public constant weth =
         IERC20(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
-    IERC20 public constant dai =
-        IERC20(address(0x6B175474E89094C44Da98b954EedeAC495271d0F));
-    IERC20 public constant usdc =
-        IERC20(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48));
-    IERC20 public constant usdt =
-        IERC20(address(0xdAC17F958D2ee523a2206206994597C13D831ec7));
 
     uint256 public manualKeep3rHarvest = 0;
     bool public harvestExtras = true; // boolean to determine if we should always claim extra rewards
@@ -99,7 +93,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
         debtThreshold = 400 * 1e18; // we shouldn't ever have debt, but set a bit of a buffer
         profitFactor = 4000; // in this strategy, profitFactor is only used for telling keep3rs when to move funds from vault to strategy
 
-        // want = crvIB, Curve's Iron Bank pool (ycDai+ycUsdc+ycUsdt)
+        // want = crvSETH, sETH curve pool (sETH + ETH)
         want.safeApprove(address(depositContract), uint256(-1));
 
         // add approvals for crv on sushiswap and uniswap due to weird crv approval issues for setCrvRouter
@@ -113,16 +107,14 @@ contract StrategyConvexCurveLP is BaseStrategy {
         usdt.safeApprove(address(curve), uint256(-1));
         
         // crv token path
-        crvPath = new address[](3);
+        crvPath = new address[](2);
         crvPath[0] = address(crv);
         crvPath[1] = address(weth);
-        crvPath[2] = address(dai);
         
         // convex token path
-        convexTokenPath = new address[](3);
+        convexTokenPath = new address[](2);
         convexTokenPath[0] = address(convexToken);
         convexTokenPath[1] = address(weth);
-        convexTokenPath[2] = address(dai);
     }
 
     function name() external view override returns (string memory) {
@@ -163,15 +155,9 @@ contract StrategyConvexCurveLP is BaseStrategy {
             _sellCrv(crvRemainder);
             _sellConvex(convexBalance);
 
-            if (optimal == 0) {
-                uint256 daiBalance = dai.balanceOf(address(this));
-                curve.add_liquidity([daiBalance, 0, 0], 0, true);
-            } else if (optimal == 1) {
-                uint256 usdcBalance = usdc.balanceOf(address(this));
-                curve.add_liquidity([0, usdcBalance, 0], 0, true);
-            } else {
-                uint256 usdtBalance = usdt.balanceOf(address(this));
-                curve.add_liquidity([0, 0, usdtBalance], 0, true);
+            uint256 ethBalance = address(this).balance;
+            if (ethBalance > minToSwap) {
+                curve.add_liquidity{value: ethBalance}([ethBalance, 0], 0);
             }
         }
         // this is a harvest, so set our switch equal to 1 so this
@@ -267,9 +253,9 @@ contract StrategyConvexCurveLP is BaseStrategy {
         return (_liquidatedAmount, _loss);
     }
 
-    // Sells our harvested CRV into the selected output (DAI, USDC, or USDT).
+    // Sells our harvested CRV into the selected output (ETH).
     function _sellCrv(uint256 _amount) internal {
-        IUniswapV2Router02(crvRouter).swapExactTokensForTokens(
+        IUniswapV2Router02(crvRouter).swapExactTokensForETH(
             _amount,
             uint256(0),
             crvPath,
@@ -278,9 +264,9 @@ contract StrategyConvexCurveLP is BaseStrategy {
         );
     }
     
-    // Sells our harvested CVX into the selected output (DAI, USDC, or USDT).
+    // Sells our harvested CVX into the selected output (ETH).
     function _sellConvex(uint256 _amount) internal {
-        IUniswapV2Router02(crvRouter).swapExactTokensForTokens(
+        IUniswapV2Router02(crvRouter).swapExactTokensForETH(
             _amount,
             uint256(0),
             convexTokenPath,
@@ -320,9 +306,6 @@ contract StrategyConvexCurveLP is BaseStrategy {
         address[] memory protected = new address[](5);
         protected[0] = address(convexToken);
         protected[1] = address(crv);
-        protected[2] = address(dai);
-        protected[3] = address(usdt);
-        protected[4] = address(usdc);
 
         return protected;
     }
@@ -458,32 +441,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
     function setClaimRewards(bool _claimRewards) external onlyAuthorized {
             claimRewards = _claimRewards;
     }
-
-    // Set optimal token to sell harvested CRV into for depositing back to Iron Bank Curve pool.
-    // Default is DAI, but can be set to USDC or USDT as needed by strategist or governance.
-    function setOptimal(uint256 _optimal) external onlyAuthorized {
-        crvPath = new address[](3);
-        crvPath[0] = address(crv);
-        crvPath[1] = address(weth);
-        
-        convexTokenPath = new address[](3);
-        convexTokenPath[0] = address(convexToken);
-        convexTokenPath[1] = address(weth);
-
-        if (_optimal == 0) {
-            crvPath[2] = address(dai);
-            convexTokenPath[2] = address(dai);
-            optimal = 0;
-        } else if (_optimal == 1) {
-            crvPath[2] = address(usdc);
-            convexTokenPath[2] = address(usdc);
-            optimal = 1;
-        } else if (_optimal == 2) {
-            crvPath[2] = address(usdt);
-            convexTokenPath[2] = address(usdt);
-            optimal = 2;
-        } else {
-            require(false, "incorrect token");
-        }
-    }
+    
+    // enable ability to recieve ETH
+    receive() external payable {}
 }
