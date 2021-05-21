@@ -32,8 +32,9 @@ def test_emergency_withdraw_method_0(gov, token, vault, dudesahn, strategist, wh
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
-    vault.deposit(100000e18, {"from": whale})
-    strategy.harvest({"from": dudesahn})
+    vault.deposit(100e18, {"from": whale})
+    newWhale = token.balanceOf(whale)
+    starting_assets = vault.totalAssets()
 
     # simulate a day of earnings
     chain.sleep(86400)

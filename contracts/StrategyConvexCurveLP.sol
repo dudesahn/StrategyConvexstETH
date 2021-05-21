@@ -43,7 +43,7 @@ interface IConvexDeposit {
 
     /* ========== CONTRACT ========== */
 
-contract StrategyConvexCurveLP is BaseStrategy {
+contract StrategyConvexCurvesETHLP is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
@@ -69,6 +69,8 @@ contract StrategyConvexCurveLP is BaseStrategy {
         IERC20(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B));
     IERC20 public constant weth =
         IERC20(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
+    IERC20 public constant dai =
+        IERC20(address(0x6B175474E89094C44Da98b954EedeAC495271d0F));
         
     uint256 public USE_SUSHI = 1; // if 1, use sushiswap as our router for CRV or CVX sells
     address public constant sushiswapRouter =
@@ -156,7 +158,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
             _sellConvex(convexBalance);
 
             uint256 ethBalance = address(this).balance;
-            if (ethBalance > minToSwap) {
+            if (ethBalance > 0) {
                 curve.add_liquidity{value: ethBalance}([ethBalance, 0], 0);
             }
         }
@@ -256,7 +258,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
     // Sells our harvested CRV into the selected output (ETH).
     function _sellCrv(uint256 _crvAmount) internal {
         IUniswapV2Router02(crvRouter).swapExactTokensForETH(
-            _amount,
+            _crvAmount,
             uint256(0),
             crvPath,
             address(this),
@@ -267,7 +269,7 @@ contract StrategyConvexCurveLP is BaseStrategy {
     // Sells our harvested CVX into the selected output (ETH).
     function _sellConvex(uint256 _convexAmount) internal {
         IUniswapV2Router02(crvRouter).swapExactTokensForETH(
-            _amount,
+            _convexAmount,
             uint256(0),
             convexTokenPath,
             address(this),
