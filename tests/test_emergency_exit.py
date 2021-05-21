@@ -28,7 +28,7 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     vault.withdraw({"from": whale})    
     assert token.balanceOf(whale) > startingWhale 
     
-def test_emergency_withdraw_method_0(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexCurveLP):
+def test_emergency_withdraw_method_0(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexCurvesETHLP):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})

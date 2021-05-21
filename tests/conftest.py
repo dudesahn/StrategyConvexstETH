@@ -32,8 +32,8 @@ def dai():
     yield Contract("0x6B175474E89094C44Da98b954EedeAC495271d0F")
 
 @pytest.fixture
-def rewardsContract():
-    yield Contract("0x3E03fFF82F77073cc590b656D42FceB12E4910A8")
+def rewardsContract(): # this is the sETH pool rewards contract
+    yield Contract("0x192469CadE297D6B21F418cFA8c366b63FFC9f9b")
 
 @pytest.fixture
 def voter():
