@@ -107,10 +107,10 @@ def curveVoterProxyStrategy():
     yield Contract("0xdD498eB680B0CE6Cac17F7dab0C35Beb6E481a6d")
 
 @pytest.fixture
-def strategy(strategist, keeper, vault, StrategyConvexCurveLP, gov, curveVoterProxyStrategy, guardian):
+def strategy(strategist, keeper, vault, StrategyConvexCurvesETHLP, gov, curveVoterProxyStrategy, guardian):
 	# parameters for this are: strategy, vault, max deposit, minTimePerInvest, slippage protection (10000 = 100% slippage allowed), 
 	# staking pool (4 for alUSD-3Crv on masterchef), asset number (0 alUSD, 1 DAI, 2 USDC, 3 USDT)
-    strategy = guardian.deploy(StrategyConvexCurveLP, vault)
+    strategy = guardian.deploy(StrategyConvexCurvesETHLP, vault)
     strategy.setKeeper(keeper)
     # lower the debtRatio of genlender to make room for our new strategy
     vault.updateStrategyDebtRatio(curveVoterProxyStrategy, 9950, {"from": gov})
