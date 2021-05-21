@@ -45,10 +45,10 @@ def test_operation(gov, token, vault, dudesahn, strategist, whale, strategy, cha
     cvx.transfer(strategy, 10000e18, {"from": convexWhale})
     strategy.harvest({"from": dudesahn})
     new_assets_from_convex_sale = vault.totalAssets()
-    assert new_assets_from_convex_sale > new_assets_usdt
+    assert new_assets_from_convex_sale > new_assets_dai
 
     # Display estimated APR based on the past day
-    print("\nEstimated CVX Donation APR: ", "{:.2%}".format(((new_assets_from_convex_sale - new_assets_usdt) * 365) / (strategy.estimatedTotalAssets())))
+    print("\nEstimated CVX Donation APR: ", "{:.2%}".format(((new_assets_from_convex_sale - new_assets_dai) * 365) / (strategy.estimatedTotalAssets())))
 
     # wait to allow share price to reach full value (takes 6 hours as of 0.3.2)
     chain.sleep(86400)

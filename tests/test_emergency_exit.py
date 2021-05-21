@@ -7,11 +7,11 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
-    vault.deposit(100000e18, {"from": whale})
+    vault.deposit(100e18, {"from": whale})
     strategy.harvest({"from": dudesahn})
 
     # simulate a day of earnings
-    chain.sleep(86400)
+    chain.sleep(186400)
     chain.mine(1)
 
     # set emergency and exit, then confirm that the strategy has no funds
@@ -21,7 +21,7 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     assert rewardsContract.balanceOf(strategy) == 0
 
     # wait for share price to return to normal
-    chain.sleep(86400)
+    chain.sleep(186400)
     chain.mine(1)
     
     # withdraw and confirm we made money
@@ -48,7 +48,7 @@ def test_emergency_withdraw_method_0(gov, token, vault, dudesahn, strategist, wh
     # we also assume extra rewards are fine, so we will collect them on harvest and withdrawal
     strategy.setHarvestExtras(True, {"from": gov})
     strategy.setClaimRewards(True, {"from": gov})
-    strategy.emergencyWithdraw({"from": dudesahn})
+    strategy.withdrawToConvexDepositTokens({"from": dudesahn})
     strategy.harvest({"from": dudesahn})
     assert strategy.estimatedTotalAssets() == 0
     assert rewardsContract.balanceOf(strategy) == 0
@@ -62,7 +62,7 @@ def test_emergency_withdraw_method_1(gov, token, vault, dudesahn, strategist, wh
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
-    vault.deposit(100000e18, {"from": whale})
+    vault.deposit(100e18, {"from": whale})
     strategy.harvest({"from": dudesahn})
 
     # simulate a day of earnings
@@ -76,7 +76,7 @@ def test_emergency_withdraw_method_1(gov, token, vault, dudesahn, strategist, wh
     strategy.setClaimRewards(False, {"from": gov})
     strategy.setEmergencyExit({"from": gov})
     
-    strategy.emergencyWithdraw({"from": dudesahn})
+    strategy.withdrawToConvexDepositTokens({"from": dudesahn})
     strategy.harvest({"from": dudesahn})
     assert strategy.estimatedTotalAssets() == 0
     assert rewardsContract.balanceOf(strategy) == 0

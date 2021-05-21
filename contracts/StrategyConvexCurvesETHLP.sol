@@ -407,12 +407,12 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     function claimableProfitInDolla() internal view returns (uint256) {
     	uint256 claimableCrv = IConvexRewards(rewardsContract).earned(address(this)); // how much CRV we can claim from the staking contract
     	uint256 mintableCvx = claimableCrv.mul(convexMintRatio).div(FEE_DENOMINATOR); // a set amount of CVX token is minted per CRV claimed
-        
-        uint256[] memory crvSwap = IUniswapV2Router02(crvRouter).getAmountsOut(claimableCrv, crvPath);
-		uint256 crvValue = crvSwap[2];
-		
-		uint256 cvxValue = 0;
-		
+    	uint256 crvValue = 0;
+		if (claimableCrv > 0) {
+        	uint256[] memory crvSwap = IUniswapV2Router02(crvRouter).getAmountsOut(claimableCrv, crvPath);
+			crvValue = crvSwap[2];
+		}
+		uint256 cvxValue = 0;	
 		if (mintableCvx > 0) {
         	uint256[] memory cvxSwap = IUniswapV2Router02(cvxRouter).getAmountsOut(mintableCvx, convexTokenPath);
 			cvxValue = cvxSwap[2];		
