@@ -119,7 +119,7 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return "StrategyConvexCurveLP";
+        return "StrategyConvexCurvesETHLP";
     }
 
     // total assets held by strategy. loose funds in strategy and all staked funds
