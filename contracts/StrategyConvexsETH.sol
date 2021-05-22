@@ -99,8 +99,8 @@ contract StrategyConvexsETH is BaseStrategy {
 
         // add approvals for crv on sushiswap and uniswap due to weird crv approval issues for setCrvRouter
         // add approvals on all tokens. since we use ETH to deposit to Curve pool, we don't need approvals for it
-        crv.safeApprove(uniswapRouter, type(uint256).max);
-        crv.safeApprove(sushiswapRouter, type(uint256).max);
+        IERC20(address(crv)).safeApprove(uniswapRouter, type(uint256).max);
+        IERC20(address(crv)).safeApprove(sushiswapRouter, type(uint256).max);
         convexToken.safeApprove(uniswapRouter, type(uint256).max);
         convexToken.safeApprove(sushiswapRouter, type(uint256).max);
         
