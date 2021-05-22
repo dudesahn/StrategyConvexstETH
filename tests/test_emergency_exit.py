@@ -15,6 +15,7 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     chain.mine(1)
 
     # set emergency and exit, then confirm that the strategy has no funds
+    strategy.setClaimRewards(True, {"from": gov})
     strategy.setEmergencyExit({"from": gov})
     strategy.harvest({"from": dudesahn})
     assert strategy.estimatedTotalAssets() == 0

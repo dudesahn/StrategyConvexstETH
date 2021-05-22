@@ -496,6 +496,6 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     	harvestProfitFactor = _harvestProfitFactor;
     }
     
-    // enable ability to recieve ETH
+    // allow our contract to receive ETH (gimme dat future of france, plz)
     receive() external payable {}
 }
