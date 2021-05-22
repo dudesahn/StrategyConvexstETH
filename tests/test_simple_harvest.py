@@ -9,7 +9,6 @@ def test_simple_harvest(gov, token, vault, dudesahn, strategist, whale, strategy
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
     vault.deposit(100e18, {"from": whale})
     newWhale = token.balanceOf(whale)
-    starting_assets = vault.totalAssets()
     
     # harvest, store asset amount
     strategy.harvest({"from": gov})

@@ -43,7 +43,7 @@ interface IConvexDeposit {
 
     /* ========== CONTRACT ========== */
 
-contract StrategyConvexCurvesETHLP is BaseStrategy {
+contract StrategyConvexsETH is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
@@ -99,10 +99,10 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
 
         // add approvals for crv on sushiswap and uniswap due to weird crv approval issues for setCrvRouter
         // add approvals on all tokens. since we use ETH to deposit to Curve pool, we don't need approvals for it
-        crv.approve(uniswapRouter, type(uint256).max);
-        crv.approve(sushiswapRouter, type(uint256).max);
-        convexToken.approve(uniswapRouter, type(uint256).max);
-        convexToken.approve(sushiswapRouter, type(uint256).max);
+        crv.safeApprove(uniswapRouter, type(uint256).max);
+        crv.safeApprove(sushiswapRouter, type(uint256).max);
+        convexToken.safeApprove(uniswapRouter, type(uint256).max);
+        convexToken.safeApprove(sushiswapRouter, type(uint256).max);
         
         // crv token path
         crvPath = new address[](2);
@@ -116,7 +116,7 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     }
 
     function name() external view override returns (string memory) {
-        return "StrategyConvexCurvesETHLP";
+        return "StrategyConvexsETH";
     }
 
     // total assets held by strategy. loose funds in strategy and all staked funds
@@ -141,7 +141,8 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
         uint256 stakedTokens = IConvexRewards(rewardsContract).balanceOf(address(this));
         uint256 claimableTokens = IConvexRewards(rewardsContract).earned(address(this));
         if (stakedTokens > 0 && claimableTokens > 0) {
-        	// if for some reason we don't want extra rewards, make sure we don't harvest them
+        	// this claims our CRV, CVX, and any extra tokens like SNX or ANKR
+        	// if for some reason we don't want extra rewards, make sure we don't harvest them        	
         	IConvexRewards(rewardsContract).getReward(address(this), harvestExtras);
         	
             uint256 crvBalance = crv.balanceOf(address(this));
@@ -275,7 +276,7 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
 
 	// in case we need to exit into the convex deposit token, this will allow us to do that
 	// make sure to check claimRewards before this step if needed
-	// plan to have gov sweep tokens from strategy after this
+	// plan to have gov sweep convex deposit tokens from strategy after this
     function withdrawToConvexDepositTokens() external onlyAuthorized {
         uint256 stakedTokens = IConvexRewards(rewardsContract).balanceOf(address(this));
     	IConvexRewards(rewardsContract).withdraw(stakedTokens, claimRewards);

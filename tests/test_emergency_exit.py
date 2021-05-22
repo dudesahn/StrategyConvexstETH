@@ -11,8 +11,11 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     strategy.harvest({"from": dudesahn})
 
     # simulate a day of earnings
-    chain.sleep(186400)
+    chain.sleep(86400)
     chain.mine(1)
+    earned_crv = rewardsContract.earned(strategy)/1e18
+    print("CRV Earned and waiting to be claimed:", earned_crv)
+    assert earned_crv > 0
 
     # set emergency and exit, then confirm that the strategy has no funds
     strategy.setClaimRewards(True, {"from": gov})
@@ -22,7 +25,7 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     assert rewardsContract.balanceOf(strategy) == 0
 
     # wait for share price to return to normal
-    chain.sleep(186400)
+    chain.sleep(86400)
     chain.mine(1)
     
     # withdraw and confirm we made money
@@ -34,7 +37,6 @@ def test_emergency_withdraw_method_0(gov, token, vault, dudesahn, strategist, wh
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
     vault.deposit(100e18, {"from": whale})
-    newWhale = token.balanceOf(whale)
     starting_assets = vault.totalAssets()
 
     # simulate a day of earnings
