@@ -35,6 +35,7 @@ def dai():
 def rewardsContract(): # this is the sETH pool rewards contract
     yield Contract("0x192469CadE297D6B21F418cFA8c366b63FFC9f9b")
 
+
 @pytest.fixture
 def voter():
     # this is yearn's veCRV voter, where all gauge tokens are held (for v2 curve gauges that are tokenized)
@@ -49,7 +50,7 @@ def gov(accounts):
 @pytest.fixture
 def dudesahn(accounts):
     yield accounts.at("0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09", force=True)
-
+    
 @pytest.fixture
 def strategist_ms(accounts):
     # like governance, but better
@@ -98,7 +99,7 @@ def whale(accounts):
 @pytest.fixture
 def convexWhale(accounts):
     # Totally in it for the tech (largest EOA holder of CVX, ~70k worth)
-    convexWhale = accounts.at('0x48e91eA1b2ce7FE7F39b0f606412d63855bfD674', force=True)
+    convexWhale = accounts.at('0xC55c7d2816C3a1BCD452493aA99EF11213b0cD3a', force=True)
     yield convexWhale
 
 # this is the live strategy for sETH
@@ -111,6 +112,7 @@ def strategy(strategist, keeper, vault, StrategyConvexCurvesETHLP, gov, curveVot
 	# parameters for this are: strategy, vault, max deposit, minTimePerInvest, slippage protection (10000 = 100% slippage allowed), 
 	# staking pool (4 for alUSD-3Crv on masterchef), asset number (0 alUSD, 1 DAI, 2 USDC, 3 USDT)
     strategy = guardian.deploy(StrategyConvexCurvesETHLP, vault)
+
     strategy.setKeeper(keeper)
     # lower the debtRatio of genlender to make room for our new strategy
     vault.updateStrategyDebtRatio(curveVoterProxyStrategy, 9950, {"from": gov})
