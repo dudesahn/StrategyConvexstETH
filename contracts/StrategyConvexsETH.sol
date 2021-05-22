@@ -63,7 +63,7 @@ contract StrategyConvexsETH is BaseStrategy {
     using SafeMath for uint256;
 
     ICurveFi public constant curve =
-        ICurveFi(address(0xc5424B857f758E906013F3555Dad202e4bdB4567)); // Curve sETH Pool, need this for buying more pool tokens
+        ICurveFi(0xc5424B857f758E906013F3555Dad202e4bdB4567); // Curve sETH Pool, need this for buying more pool tokens
     address public crvRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap, more CRV liquidity there
     address public cvxRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap, more CVX liquidity there
     address public constant voter = 0xF147b8125d2ef93FB6965Db97D6746952a133934; // Yearn's veCRV voter, we send some extra CRV here
@@ -79,13 +79,13 @@ contract StrategyConvexsETH is BaseStrategy {
     uint256 public constant FEE_DENOMINATOR = 10000; // with this and the above, sending 10% of our CRV yield to our voter
 
     ICrvV3 public constant crv =
-        ICrvV3(address(0xD533a949740bb3306d119CC777fa900bA034cd52));
+        ICrvV3(0xD533a949740bb3306d119CC777fa900bA034cd52);
     IERC20 public constant convexToken =
-        IERC20(address(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B));
+        IERC20(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B);
     IERC20 public constant weth =
-        IERC20(address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2));
+        IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IERC20 public constant dai =
-        IERC20(address(0x6B175474E89094C44Da98b954EedeAC495271d0F));
+        IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
     uint256 public USE_SUSHI = 1; // if 1, use sushiswap as our router for CRV or CVX sells
     address public constant sushiswapRouter =
@@ -285,6 +285,9 @@ contract StrategyConvexsETH is BaseStrategy {
                 uint256 debt = vault.strategies(address(this)).totalDebt;
                 _loss = debt.sub(assets);
             }
+        } else {
+          // we have enough balance to cover the liquidation available
+          return (_amountNeeded, 0);
         }
     }
 
