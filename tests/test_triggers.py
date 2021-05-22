@@ -6,14 +6,14 @@ from brownie import config
 def test_triggers(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract):
     # this is assuming tendCounter is set to 3
     ## deposit to the vault after approving
-    strategy.setTendsPerHarvest(3, {"from": gov})
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
-    vault.deposit(100000e18, {"from": whale})
+    vault.deposit(100e18, {"from": whale})
     newWhale = token.balanceOf(whale)
+    starting_assets = vault.totalAssets()
 
     # simulate a day of earnings
-    chain.sleep(86400)
+    chain.sleep(186400)
     chain.mine(1)
     
     # harvest should trigger false
