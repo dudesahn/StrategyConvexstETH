@@ -49,9 +49,9 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     using SafeMath for uint256;
 
     ICurveFi public constant curve = ICurveFi(address(0xc5424B857f758E906013F3555Dad202e4bdB4567)); // Curve sETH Pool, need this for buying more pool tokens
-    address public crvRouter = address(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F); // default to sushiswap, more CRV liquidity there
-    address public cvxRouter = address(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F); // default to sushiswap, more CVX liquidity there
-    address public constant voter = address(0xF147b8125d2ef93FB6965Db97D6746952a133934); // Yearn's veCRV voter, we send some extra CRV here
+    address public crvRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap, more CRV liquidity there
+    address public cvxRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap, more CVX liquidity there
+    address public constant voter = 0xF147b8125d2ef93FB6965Db97D6746952a133934; // Yearn's veCRV voter, we send some extra CRV here
     address[] public crvPath; // path to sell CRV
     address[] public convexTokenPath; // path to sell CVX
     
@@ -73,22 +73,19 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
         IERC20(address(0x6B175474E89094C44Da98b954EedeAC495271d0F));
         
     uint256 public USE_SUSHI = 1; // if 1, use sushiswap as our router for CRV or CVX sells
-    address public constant sushiswapRouter =
-        address(0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F);
-    address public constant uniswapRouter =
-        address(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    address public constant sushiswapRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
+    address public constant uniswapRouter = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
         
     // convex-specific variables
     bool public harvestExtras = true; // boolean to determine if we should always claim extra rewards during claimRewards (generally this should be true)
     bool public claimRewards = false; // boolean if we should always claim rewards when withdrawing, usually withdrawAndUnwrap (generally this should be false)
-    uint256 public convexMintRatio = 5000; // amount of CVX tokens minted per CRV rewards tokens, in basis points. This changes over time (set by Convex gov) and should be monitored by strategist. 
 
     // Keep3r stuff
-    uint256 public manualKeep3rHarvest = 0; // this is used in case we want to manually trigger a keep3r harvest since they are cheaper than a strategist harvest
+    uint256 public manualKeep3rHarvest; // this is used in case we want to manually trigger a keep3r harvest since they are cheaper than a strategist harvest
     uint256 public harvestProfitFactor; // the multiple that our harvest profit needs to be compared to harvest cost for it to trigger
-    uint256 public tendCounter = 0; // track our tendies
-    uint256 public tendsPerHarvest = 0; // how many tends we call before we harvest. set to 0 to never call tends.
-    uint256 internal harvestNow = 0; // 0 for false, 1 for true if we are mid-harvest. this is used to differentiate tends vs harvests in adjustPosition
+    uint256 public tendCounter; // track our tendies
+    uint256 public tendsPerHarvest; // how many tends we call before we harvest. set to 0 to never call tends.
+    uint256 internal harvestNow; // 0 for false, 1 for true if we are mid-harvest. this is used to differentiate tends vs harvests in adjustPosition
 
     constructor(address _vault) public BaseStrategy(_vault) {
         // You can set these parameters on deployment to whatever you want
@@ -98,14 +95,14 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
         profitFactor = 4000; // in this strategy, profitFactor is only used for telling keep3rs when to move funds from vault to strategy (what previously was an earn call)
 
         // want = crvSETH, sETH curve pool (sETH + ETH)
-        want.safeApprove(address(depositContract), uint256(-1));
+        want.safeApprove(address(depositContract), type(uint256).max);
 
         // add approvals for crv on sushiswap and uniswap due to weird crv approval issues for setCrvRouter
-        // add approvals on all tokens
-        crv.approve(uniswapRouter, uint256(-1));
-        crv.approve(sushiswapRouter, uint256(-1));
-        convexToken.approve(uniswapRouter, uint256(-1));
-        convexToken.approve(sushiswapRouter, uint256(-1));
+        // add approvals on all tokens. since we use ETH to deposit to Curve pool, we don't need approvals for it
+        crv.approve(uniswapRouter, type(uint256).max);
+        crv.approve(sushiswapRouter, type(uint256).max);
+        convexToken.approve(uniswapRouter, type(uint256).max);
+        convexToken.approve(sushiswapRouter, type(uint256).max);
         
         // crv token path
         crvPath = new address[](2);
@@ -177,8 +174,7 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
         if (assets > debt) {
             _profit = want.balanceOf(address(this));
         }
-        // if assets are less than debt, we are in trouble
-        else {
+        else { // if assets are less than debt, we are in trouble
             _loss = debt.sub(assets);
             _profit = 0;
         }
@@ -199,7 +195,9 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     function adjustPosition(uint256 _debtOutstanding) internal override {
         if (emergencyExit) {
             return;
-        } else if (harvestNow == 1) {
+        }
+        
+        if (harvestNow == 1) {
             // if this is part of a harvest call, send all of our Iron Bank pool tokens to be deposited
             uint256 _toInvest = want.balanceOf(address(this));
             // deposit into convex and stake immediately but only if we have something to invest
@@ -251,8 +249,6 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
                 _loss = debt.sub(assets);
             }
         }
-
-        return (_liquidatedAmount, _loss);
     }
 
     // Sells our harvested CRV into the selected output (ETH).
@@ -406,13 +402,32 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     // convert our unsold CRV and CVX into USD profit for our keep3r
     function claimableProfitInDolla() internal view returns (uint256) {
     	uint256 claimableCrv = IConvexRewards(rewardsContract).earned(address(this)); // how much CRV we can claim from the staking contract
-    	uint256 mintableCvx = claimableCrv.mul(convexMintRatio).div(FEE_DENOMINATOR); // a set amount of CVX token is minted per CRV claimed
-    	uint256 crvValue = 0;
-		if (claimableCrv > 0) {
-        	uint256[] memory crvSwap = IUniswapV2Router02(crvRouter).getAmountsOut(claimableCrv, crvPath);
-			crvValue = crvSwap[2];
-		}
-		uint256 cvxValue = 0;	
+    	
+    	// calculations pulled directly from CVX's contract for minting CVX per CRV claimed
+    	uint256 totalCliffs = 1000;    
+    	uint256 maxSupply = 100 * 1000000 * 1e18; // 100mil
+    	uint256 reductionPerCliff = 100000000000000000000000; // 100,000
+    	uint256 supply = convexToken.totalSupply();
+
+        uint256 cliff = supply.div(reductionPerCliff);
+        //mint if below total cliffs
+        if(cliff < totalCliffs){
+            //for reduction% take inverse of current cliff
+            uint256 reduction = totalCliffs.sub(cliff);
+            //reduce
+            uint256 mintableCvx = claimableCrv.mul(reduction).div(totalCliffs);
+
+            //supply cap check
+            uint256 amtTillMax = maxSupply.sub(supply);
+            if(mintableCvx > amtTillMax){
+                mintableCvx = amtTillMax;
+            }
+    	        
+        uint256[] memory crvSwap = IUniswapV2Router02(crvRouter).getAmountsOut(claimableCrv, crvPath);
+		uint256 crvValue = crvSwap[2];
+		
+		uint256 cvxValue = 0;
+		
 		if (mintableCvx > 0) {
         	uint256[] memory cvxSwap = IUniswapV2Router02(cvxRouter).getAmountsOut(mintableCvx, convexTokenPath);
 			cvxValue = cvxSwap[2];		
@@ -420,6 +435,7 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
 
         return crvValue.add(cvxValue); // dollar value of our harvest 
     	}
+    }
 
     // set number of tends before we call our next harvest
     function setTendsPerHarvest(uint256 _tendsPerHarvest)
@@ -473,11 +489,6 @@ contract StrategyConvexCurvesETHLP is BaseStrategy {
     // We usually don't need to claim rewards on withdrawals, but might change our mind for migrations etc
     function setClaimRewards(bool _claimRewards) external onlyAuthorized {
             claimRewards = _claimRewards;
-    }
-    
-    // Convex has said they will update over time how many CVX gets minted per CRV claimed, so we need to be able to update this
-    function setConvexMintRatio(uint256 _amount) external onlyAuthorized {
-            convexMintRatio = _amount;
     }
 
 	// set this to the multiple we want to make on our harvests vs the cost
