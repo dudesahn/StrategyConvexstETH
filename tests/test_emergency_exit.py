@@ -17,7 +17,7 @@ def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy
     print("CRV Earned and waiting to be claimed:", earned_crv)
     assert earned_crv > 0
 
-    # set emergency and exit, then confirm that the strategy has no funds
+    # confirm that we will claim rewards on withdrawal, set emergency and exit, then confirm that the strategy has no funds
     strategy.setClaimRewards(True, {"from": gov})
     strategy.setEmergencyExit({"from": gov})
     strategy.harvest({"from": dudesahn})
