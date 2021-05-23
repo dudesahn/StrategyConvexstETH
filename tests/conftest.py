@@ -109,12 +109,15 @@ def curveVoterProxyStrategy():
 def strategy(strategist, keeper, vault, StrategyConvexsETH, gov, curveVoterProxyStrategy, guardian):
 	# parameters for this are: strategy, vault, max deposit, minTimePerInvest, slippage protection (10000 = 100% slippage allowed), 
     strategy = guardian.deploy(StrategyConvexsETH, vault)
+    # set myself as the curveProxy strategist as well
+    curveVoterProxyStrategy.setStrategist('0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09', {"from": gov})
     strategy.setKeeper(keeper, {"from": gov})
     # lower the debtRatio of genlender to make room for our new strategy
     vault.updateStrategyDebtRatio(curveVoterProxyStrategy, 9950, {"from": gov})
+    # set management fee to zero so we don't need to worry about this messing up pps
     vault.setManagementFee(0, {"from": gov})
     curveVoterProxyStrategy.harvest({"from": gov})
-    vault.addStrategy(strategy, 50, 0, 2 ** 256 -1, 1000, {"from": gov})
+    vault.addStrategy(strategy, 25, 0, 2 ** 256 -1, 1000, {"from": gov})
     strategy.setStrategist('0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09', {"from": gov})
     strategy.harvest({"from": gov})
     yield strategy
