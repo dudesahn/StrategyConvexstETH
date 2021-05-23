@@ -28,3 +28,12 @@ def test_setters(gov, token, vault, new_address, chain, strategy, rewardsContrac
 
     strategy.setHarvestProfitFactor(4000, {"from": gov})
     assert strategy.harvestProfitFactor() == 4000
+
+    strategy.setLdoRouter(2, {"from": gov})
+    assert strategy.ldoRouter() == '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
+
+    strategy.update1InchPoolAddress('0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', {"from": gov})
+    assert strategy.oneInchPool() == '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
+
+    strategy.updateReferal('0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', {"from": gov})
+    assert strategy.referral() == '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'

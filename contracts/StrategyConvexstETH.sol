@@ -56,6 +56,12 @@ interface IConvexDeposit {
     function withdraw(uint256 _pid, uint256 _amount) external returns (bool);
 }
 
+interface IExtraRewards {
+    // read how much claimable LDO our strategy has
+    function earned(address account) external view returns (uint256);
+}
+
+
 /* ========== CONTRACT ========== */
 
 contract StrategyConvexsETH is BaseStrategy {
@@ -615,8 +621,8 @@ contract StrategyConvexsETH is BaseStrategy {
     }
     
     // update our referral address for 1inch
-    function updateReferal(address _referal) public onlyAuthorized {
-        referal = _referal;
+    function updateReferral(address _referral) public onlyAuthorized {
+        referral = _referral;
     }
 
     // Unless contract is borked for some reason, we should always harvest extra tokens
