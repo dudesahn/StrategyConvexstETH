@@ -9,7 +9,7 @@ from brownie import config
 # test passes as of 21-05-20
 def test_migration(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexstETH):
     # deploy our new strategy
-    new_strategy = dudesahn.deploy(StrategyConvexsETH, vault)
+    new_strategy = dudesahn.deploy(StrategyConvexstETH, vault)
     total_old = strategy.estimatedTotalAssets()
 
     # migrate our old strategy

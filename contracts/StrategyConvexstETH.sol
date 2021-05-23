@@ -64,7 +64,7 @@ interface IExtraRewards {
 
 /* ========== CONTRACT ========== */
 
-contract StrategyConvexsETH is BaseStrategy {
+contract StrategyConvexstETH is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
@@ -108,6 +108,7 @@ contract StrategyConvexsETH is BaseStrategy {
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address private oneInchPool = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae;
     address private referral = 0xC3D6880fD95E06C816cB030fAc45b3ffe3651Cb0;
+    uint256 public minDelay; // named this differently because I didn't want to confuse it with minReportDelay, but it does the same thing for a 0.3.0 strategy
 
     // convex-specific variables
     bool public harvestExtras = true; // boolean to determine if we should always claim extra rewards during getReward (generally this should be true)
@@ -153,12 +154,12 @@ contract StrategyConvexsETH is BaseStrategy {
         // lido token path
         ldoPath = new address[](2);
         ldoPath[0] = address(lido);
-        ldoPath[1] = weth;
+        ldoPath[1] = address(weth);
         
     }
 
     function name() external view override returns (string memory) {
-        return "StrategyConvexsETH";
+        return "StrategyConvexstETH";
     }
 
     // total assets held by strategy. loose funds in strategy and all staked funds
@@ -421,7 +422,7 @@ contract StrategyConvexsETH is BaseStrategy {
         if (params.activation == 0) return false;
 
         // Should not trigger if we haven't waited long enough since previous harvest
-        if (block.timestamp.sub(params.lastReport) < minReportDelay)
+        if (block.timestamp.sub(params.lastReport) < minDelay)
             return false;
 
         // Should trigger if hasn't been called in a while
@@ -479,7 +480,7 @@ contract StrategyConvexsETH is BaseStrategy {
         if (
             block.timestamp.sub(params.lastReport) >
             (
-                minReportDelay.div(
+                minDelay.div(
                     (tendCounter.add(1)).mul(tendsPerHarvest.add(1))
                 )
             )
@@ -512,6 +513,7 @@ contract StrategyConvexsETH is BaseStrategy {
         uint256 maxSupply = 100 * 1000000 * 1e18; // 100mil
         uint256 reductionPerCliff = 100000000000000000000000; // 100,000
         uint256 supply = convexToken.totalSupply();
+        uint256 mintableCvx = 0;
 
         uint256 cliff = supply.div(reductionPerCliff);
         //mint if below total cliffs

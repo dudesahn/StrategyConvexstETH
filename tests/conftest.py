@@ -107,7 +107,7 @@ def convexWhale(accounts):
 # this is the live strategy for stETH
 @pytest.fixture
 def curveVoterProxyStrategy():
-    yield Contract("0xdCD90C7f6324cfa40d7169ef80b12031770B4325")
+    yield Contract("0x979843B8eEa56E0bEA971445200e0eC3398cdB87")
 
 @pytest.fixture
 def strategy(strategist, keeper, vault, StrategyConvexstETH, gov, curveVoterProxyStrategy, guardian):

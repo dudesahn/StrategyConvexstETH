@@ -54,11 +54,11 @@ def test_emergency_withdraw_method_0(gov, token, vault, dudesahn, strategist, wh
     strategy.harvest({"from": dudesahn})
     assert strategy.estimatedTotalAssets() == 0
     assert rewardsContract.balanceOf(strategy) == 0
-    assert cvxsETHDeposit.balanceOf(strategy) > 0
+    assert cvxstETHDeposit.balanceOf(strategy) > 0
     
     # sweep this from the strategy with gov and wait until we can figure out how to unwrap them
-    strategy.sweep(cvxsETHDeposit, {"from": gov}) 
-    assert cvxsETHDeposit.balanceOf(gov) > 0
+    strategy.sweep(cvxstETHDeposit, {"from": gov}) 
+    assert cvxstETHDeposit.balanceOf(gov) > 0
 
 
 def test_emergency_withdraw_method_1(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexstETH, cvxstETHDeposit):
@@ -83,7 +83,7 @@ def test_emergency_withdraw_method_1(gov, token, vault, dudesahn, strategist, wh
     strategy.harvest({"from": dudesahn})
     assert strategy.estimatedTotalAssets() == 0
     assert rewardsContract.balanceOf(strategy) == 0
-    assert cvxsETHDeposit.balanceOf(strategy) > 0
+    assert cvxstETHDeposit.balanceOf(strategy) > 0
 
-    strategy.sweep(cvxsETHDeposit, {"from": gov})
-    assert cvxsETHDeposit.balanceOf(gov) > 0
+    strategy.sweep(cvxstETHDeposit, {"from": gov})
+    assert cvxstETHDeposit.balanceOf(gov) > 0
