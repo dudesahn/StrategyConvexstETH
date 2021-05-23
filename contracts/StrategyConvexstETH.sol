@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 
+import "./interfaces/oneinch.sol";
 import "./interfaces/curve.sol";
 import {IUniswapV2Router02} from "./interfaces/uniswap.sol";
 import {
@@ -115,7 +116,6 @@ contract StrategyConvexsETH is BaseStrategy {
 
     constructor(address _vault) public BaseStrategy(_vault) {
         // You can set these parameters on deployment to whatever you want
-        minReportDelay = 0;
         maxReportDelay = 172800; // 2 days in seconds, if we hit this then harvestTrigger = True
         debtThreshold = 1000 * 1e18; // we shouldn't ever have debt, but set a bit of a buffer
         profitFactor = 4000; // in this strategy, profitFactor is only used for telling keep3rs when to move funds from vault to strategy (what previously was an earn call)
