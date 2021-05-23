@@ -69,7 +69,7 @@ contract StrategyConvexsETH is BaseStrategy {
     address public constant voter = 0xF147b8125d2ef93FB6965Db97D6746952a133934; // Yearn's veCRV voter, we send some extra CRV here
     address[] public crvPath; // path to sell CRV
     address[] public convexTokenPath; // path to sell CVX
-    address public ldoRouter = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae; // default to mooniswap
+    address public ldoRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap
     address[] public ldoPath;
 
     address public depositContract = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31; // this is the deposit contract that all pools use, aka booster
@@ -91,14 +91,15 @@ contract StrategyConvexsETH is BaseStrategy {
         IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     IERC20 public constant lido =
         IERC20(0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32); // updated
-    ISteth public stETH =  ISteth(address(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84));
+    IERC20 public constant stETH =
+        IERC20(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84); // updated
 
     uint256 public USE_SUSHI = 1; // if 1, use sushiswap as our router for CRV or CVX sells
     address private constant sushiswapRouter =
         0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
     address private constant uniswapRouter =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address private mooniswappool = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae;
+    address private oneInchPool = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae;
     address private referral = 0xC3D6880fD95E06C816cB030fAc45b3ffe3651Cb0;
 
     // convex-specific variables
@@ -131,7 +132,7 @@ contract StrategyConvexsETH is BaseStrategy {
         stETH.safeApprove(address(curve), type(uint256).max);
         lido.safeApprove(uniswapRouter, type(uint256).max);
         lido.safeApprove(sushiswapRouter, type(uint256).max);
-        lido.safeApprove(mooniswappool, type(uint256).max);
+        lido.safeApprove(oneInchPool, type(uint256).max);
         
         // crv token path
         crvPath = new address[](2);
@@ -340,9 +341,9 @@ contract StrategyConvexsETH is BaseStrategy {
     
     // Sells our harvested LDO into the selected output (ETH or stETH).
     function _sellLido(uint256 _lidoAmount) internal {
-        if(ldoRouter == mooniswappool){
+        if(ldoRouter == oneInchPool){
             //we sell to stETH
-            IMooniswap(mooniswappool).swap(address(lido), address(stETH), _lidoAmount, 1, referral);
+            IOneInch(oneInchPool).swap(address(lido), address(stETH), _lidoAmount, 1, referral);
         }else{
             IUniswapV2Router02(ldoRouter).swapExactTokensForETH(_lidoAmount, uint256(0), ldoPath, address(this), now);
         }
@@ -597,20 +598,20 @@ contract StrategyConvexsETH is BaseStrategy {
         }
     }
     
-    // 0 for sushi (default), 1 for mooniswap aka 1inch, 2 for uniswap (probably will never use)
+    // 0 for sushi (default), 1 for 1inch, 2 for uniswap (probably will never use)
     function setLdoRouter(uint256 _router) external onlyAuthorized {
         if (_router == 0) {
             ldoRouter = sushiswapRouter;
         } else if (_router == 1) {
-            ldoRouter = mooniswappool;
+            ldoRouter = oneInchPool;
         } else {
             ldoRouter = uniswapRouter;
         }
     }
     
     // update the address for our 1inch pool (used to swap LDO to stETH)
-    function updateMooniswapPoolAddress(address newAddress) public onlyGovernance {
-        mooniswappool = newAddress;
+    function update1InchPoolAddress(address newAddress) public onlyGovernance {
+        oneInchPool = newAddress;
     }
     
     // update our referral address for 1inch
