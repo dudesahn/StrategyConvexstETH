@@ -3,7 +3,7 @@ from brownie import Contract
 from brownie import config
 
 # test passes as of 21-05-20
-def test_operation(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, cvx, convexWhale):
+def test_operation(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, cvx, convexWhale, curveVoterProxyStrategy, ldo, lidoWhale):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
@@ -50,8 +50,21 @@ def test_operation(gov, token, vault, dudesahn, strategist, whale, strategy, cha
     # Display estimated APR based on the past day
     print("\nEstimated CVX Donation APR: ", "{:.2%}".format(((new_assets_from_convex_sale - new_assets_dai) * 365) / (strategy.estimatedTotalAssets())))
 
+    # simulate a day of earnings
+    chain.sleep(86400)
+    chain.mine(1)
 
-    # wait to allow share price to reach full value (takes 6 hours as of 0.3.2)
+    # test to make sure our strategy is selling convex properly. send it some from our whale.
+    ldo.transfer(strategy, 1000e18, {"from": lidoWhale})
+    strategy.harvest({"from": dudesahn})
+    new_assets_from_lido_sale = vault.totalAssets()
+    assert new_assets_from_lido_sale > new_assets_from_convex_sale
+    
+    # Display estimated APR based on the past day
+    print("\nEstimated LDO Donation APR: ", "{:.2%}".format(((new_assets_from_lido_sale - new_assets_from_convex_sale) * 365) / (strategy.estimatedTotalAssets())))
+
+    # simulate a day of waiting for share price to bump back up
+    curveVoterProxyStrategy.harvest({"from": gov})
     chain.sleep(86400)
     chain.mine(1)
     

@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/Math.sol";
 
+import "./interfaces/oneinch.sol";
 import "./interfaces/curve.sol";
 import {IUniswapV2Router02} from "./interfaces/uniswap.sol";
 import {
@@ -55,24 +56,33 @@ interface IConvexDeposit {
     function withdraw(uint256 _pid, uint256 _amount) external returns (bool);
 }
 
+interface IExtraRewards {
+    // read how much claimable LDO our strategy has
+    function earned(address account) external view returns (uint256);
+}
+
+
 /* ========== CONTRACT ========== */
 
-contract StrategyConvexsETH is BaseStrategy {
+contract StrategyConvexstETH is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
 
     ICurveFi public constant curve =
-        ICurveFi(0xc5424B857f758E906013F3555Dad202e4bdB4567); // Curve sETH Pool, need this for buying more pool tokens
+        ICurveFi(0xDC24316b9AE028F1497c275EB9192a3Ea0f67022); // Curve stETH Pool, need this for buying more pool tokens, updated
     address public crvRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap, more CRV liquidity there
     address public cvxRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap, more CVX liquidity there
     address public constant voter = 0xF147b8125d2ef93FB6965Db97D6746952a133934; // Yearn's veCRV voter, we send some extra CRV here
     address[] public crvPath; // path to sell CRV
     address[] public convexTokenPath; // path to sell CVX
+    address public ldoRouter = 0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F; // default to sushiswap
+    address[] public ldoPath;
 
     address public depositContract = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31; // this is the deposit contract that all pools use, aka booster
-    address public rewardsContract = 0x192469CadE297D6B21F418cFA8c366b63FFC9f9b; // This is unique to each curve pool, this one is for sETH pool
-    uint256 public pid = 23; // this is unique to each pool, this is the one for sETH, aka eCRV
+    address public rewardsContract = 0x0A760466E1B4621579a82a39CB56Dda2F4E70f03; // This is unique to each curve pool, this one is for stETH pool
+    address public extraRewardsContract = 0x008aEa5036b819B4FEAEd10b2190FBb3954981E8; // this is where LDO is stashed before it is distributed
+    uint256 public pid = 25; // this is unique to each pool, this is the one for stETH, aka steCRV
 
     // Swap stuff
     uint256 public keepCRV = 1000; // the percentage of CRV we re-lock for boost (in basis points)
@@ -86,12 +96,19 @@ contract StrategyConvexsETH is BaseStrategy {
         IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IERC20 public constant dai =
         IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IERC20 public constant lido =
+        IERC20(0x5A98FcBEA516Cf06857215779Fd812CA3beF1B32); // updated
+    IERC20 public constant stETH =
+        IERC20(0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84); // updated
 
     uint256 public USE_SUSHI = 1; // if 1, use sushiswap as our router for CRV or CVX sells
-    address public constant sushiswapRouter =
+    address private constant sushiswapRouter =
         0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F;
-    address public constant uniswapRouter =
+    address private constant uniswapRouter =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    address public oneInchPool = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae;
+    address public referral = 0xBedf3Cf16ba1FcE6c3B751903Cf77E51d51E05b8;
+    uint256 public minDelay; // named this differently because I didn't want to confuse it with minReportDelay, but it does the same thing for a 0.3.0 strategy
 
     // convex-specific variables
     bool public harvestExtras = true; // boolean to determine if we should always claim extra rewards during getReward (generally this should be true)
@@ -106,7 +123,6 @@ contract StrategyConvexsETH is BaseStrategy {
 
     constructor(address _vault) public BaseStrategy(_vault) {
         // You can set these parameters on deployment to whatever you want
-        minReportDelay = 0;
         maxReportDelay = 172800; // 2 days in seconds, if we hit this then harvestTrigger = True
         debtThreshold = 1000 * 1e18; // we shouldn't ever have debt, but set a bit of a buffer
         profitFactor = 4000; // in this strategy, profitFactor is only used for telling keep3rs when to move funds from vault to strategy (what previously was an earn call)
@@ -120,7 +136,11 @@ contract StrategyConvexsETH is BaseStrategy {
         IERC20(address(crv)).safeApprove(sushiswapRouter, type(uint256).max);
         convexToken.safeApprove(uniswapRouter, type(uint256).max);
         convexToken.safeApprove(sushiswapRouter, type(uint256).max);
-
+        stETH.safeApprove(address(curve), type(uint256).max);
+        lido.safeApprove(uniswapRouter, type(uint256).max);
+        lido.safeApprove(sushiswapRouter, type(uint256).max);
+        lido.safeApprove(oneInchPool, type(uint256).max);
+        
         // crv token path
         crvPath = new address[](2);
         crvPath[0] = address(crv);
@@ -130,10 +150,16 @@ contract StrategyConvexsETH is BaseStrategy {
         convexTokenPath = new address[](2);
         convexTokenPath[0] = address(convexToken);
         convexTokenPath[1] = address(weth);
+        
+        // lido token path
+        ldoPath = new address[](2);
+        ldoPath[0] = address(lido);
+        ldoPath[1] = address(weth);
+        
     }
 
     function name() external view override returns (string memory) {
-        return "StrategyConvexsETH";
+        return "StrategyConvexstETH";
     }
 
     // total assets held by strategy. loose funds in strategy and all staked funds
@@ -172,17 +198,21 @@ contract StrategyConvexsETH is BaseStrategy {
 
             uint256 crvBalance = crv.balanceOf(address(this));
             uint256 convexBalance = convexToken.balanceOf(address(this));
+            uint256 lidoBalance = lido.balanceOf(address(this));
 
             uint256 _keepCRV = crvBalance.mul(keepCRV).div(FEE_DENOMINATOR);
             IERC20(address(crv)).safeTransfer(voter, _keepCRV);
             uint256 crvRemainder = crvBalance.sub(_keepCRV);
 
             _sellCrv(crvRemainder);
-            _sellConvex(convexBalance);
+            if (convexBalance > 0) _sellConvex(convexBalance);
+            if (lidoBalance > 0) _sellLido(lidoBalance);
 
             uint256 ethBalance = address(this).balance;
-            if (ethBalance > 0) {
-                curve.add_liquidity{value: ethBalance}([ethBalance, 0], 0);
+            uint256 stETHBalance = stETH.balanceOf(address(this));
+
+            if(ethBalance > 0 || stETHBalance > 0){
+                curve.add_liquidity{value: ethBalance}([ethBalance, stETHBalance], 0);
             }
         }
         // this is a harvest, so set our switch equal to 1 so this
@@ -248,13 +278,16 @@ contract StrategyConvexsETH is BaseStrategy {
 
                 uint256 crvBalance = crv.balanceOf(address(this));
                 uint256 convexBalance = convexToken.balanceOf(address(this));
+                uint256 lidoBalance = lido.balanceOf(address(this));
 
                 uint256 _keepCRV = crvBalance.mul(keepCRV).div(FEE_DENOMINATOR);
                 IERC20(address(crv)).safeTransfer(voter, _keepCRV);
                 uint256 crvRemainder = crvBalance.sub(_keepCRV);
 
                 _sellCrv(crvRemainder);
-                _sellConvex(convexBalance);
+                if (convexBalance > 0) _sellConvex(convexBalance);
+                if (lidoBalance > 0) _sellLido(lidoBalance);
+                
                 // increase our tend counter by 1 so we can know when we should harvest again
                 uint256 previousTendCounter = tendCounter;
                 tendCounter = previousTendCounter.add(1);
@@ -304,13 +337,23 @@ contract StrategyConvexsETH is BaseStrategy {
 
     // Sells our harvested CVX into the selected output (ETH).
     function _sellConvex(uint256 _convexAmount) internal {
-        IUniswapV2Router02(crvRouter).swapExactTokensForETH(
+        IUniswapV2Router02(cvxRouter).swapExactTokensForETH(
             _convexAmount,
             uint256(0),
             convexTokenPath,
             address(this),
             now
         );
+    }
+    
+    // Sells our harvested LDO into the selected output (ETH or stETH).
+    function _sellLido(uint256 _lidoAmount) internal {
+        if(ldoRouter == oneInchPool){
+            //we sell to stETH
+            IOneInch(oneInchPool).swap(address(lido), address(stETH), _lidoAmount, 1, referral);
+        }else{
+            IUniswapV2Router02(ldoRouter).swapExactTokensForETH(_lidoAmount, uint256(0), ldoPath, address(this), now);
+        }
     }
 
     // in case we need to exit into the convex deposit token, this will allow us to do that
@@ -341,6 +384,10 @@ contract StrategyConvexsETH is BaseStrategy {
             _newStrategy,
             convexToken.balanceOf(address(this))
         );
+        IERC20(address(lido)).safeTransfer(
+            _newStrategy,
+            lido.balanceOf(address(this))
+        );
     }
 
     // we don't want for these tokens to be swept out. We allow gov to sweep out cvx vault tokens; we would only be holding these if things were really, really rekt.
@@ -350,9 +397,10 @@ contract StrategyConvexsETH is BaseStrategy {
         override
         returns (address[] memory)
     {
-        address[] memory protected = new address[](5);
+        address[] memory protected = new address[](3);
         protected[0] = address(convexToken);
         protected[1] = address(crv);
+        protected[2] = address(lido);
 
         return protected;
     }
@@ -374,7 +422,7 @@ contract StrategyConvexsETH is BaseStrategy {
         if (params.activation == 0) return false;
 
         // Should not trigger if we haven't waited long enough since previous harvest
-        if (block.timestamp.sub(params.lastReport) < minReportDelay)
+        if (block.timestamp.sub(params.lastReport) < minDelay)
             return false;
 
         // Should trigger if hasn't been called in a while
@@ -432,7 +480,7 @@ contract StrategyConvexsETH is BaseStrategy {
         if (
             block.timestamp.sub(params.lastReport) >
             (
-                minReportDelay.div(
+                minDelay.div(
                     (tendCounter.add(1)).mul(tendsPerHarvest.add(1))
                 )
             )
@@ -465,6 +513,7 @@ contract StrategyConvexsETH is BaseStrategy {
         uint256 maxSupply = 100 * 1000000 * 1e18; // 100mil
         uint256 reductionPerCliff = 100000000000000000000000; // 100,000
         uint256 supply = convexToken.totalSupply();
+        uint256 mintableCvx;
 
         uint256 cliff = supply.div(reductionPerCliff);
         //mint if below total cliffs
@@ -472,34 +521,47 @@ contract StrategyConvexsETH is BaseStrategy {
             //for reduction% take inverse of current cliff
             uint256 reduction = totalCliffs.sub(cliff);
             //reduce
-            uint256 mintableCvx = claimableCrv.mul(reduction).div(totalCliffs);
+            mintableCvx = claimableCrv.mul(reduction).div(totalCliffs);
 
             //supply cap check
             uint256 amtTillMax = maxSupply.sub(supply);
             if (mintableCvx > amtTillMax) {
                 mintableCvx = amtTillMax;
             }
-
-            uint256[] memory crvSwap =
-                IUniswapV2Router02(crvRouter).getAmountsOut(
-                    claimableCrv,
-                    crvPath
-                );
-            uint256 crvValue = crvSwap[2];
-
-            uint256 cvxValue = 0;
-
-            if (mintableCvx > 0) {
-                uint256[] memory cvxSwap =
-                    IUniswapV2Router02(cvxRouter).getAmountsOut(
-                        mintableCvx,
-                        convexTokenPath
-                    );
-                cvxValue = cvxSwap[2];
-            }
-
-            return crvValue.add(cvxValue); // dollar value of our harvest
         }
+        
+        uint256 crvValue;
+        if (claimableCrv > 0) {
+        	uint256[] memory crvSwap =
+            	IUniswapV2Router02(crvRouter).getAmountsOut(
+                	claimableCrv,
+                	crvPath
+            	);
+        	crvValue = crvSwap[2];
+        }
+
+        uint256 cvxValue;
+        if (mintableCvx > 0) {
+            uint256[] memory cvxSwap =
+                IUniswapV2Router02(cvxRouter).getAmountsOut(
+                    mintableCvx,
+                    convexTokenPath
+                );
+            cvxValue = cvxSwap[2];
+        }
+            
+        uint256 ldoValue;
+        uint256 claimableLdo = IExtraRewards(extraRewardsContract).earned(address(this));
+        if (claimableLdo > 0) {
+        	uint256[] memory ldoSwap =
+            	IUniswapV2Router02(sushiswapRouter).getAmountsOut(
+                	claimableLdo,
+                	ldoPath
+            	);
+        	ldoValue = ldoSwap[2];
+        }
+        
+        return crvValue.add(cvxValue).add(ldoValue); // dollar value of our harvest
     }
 
     // set number of tends before we call our next harvest
@@ -547,6 +609,27 @@ contract StrategyConvexsETH is BaseStrategy {
         } else {
             cvxRouter = uniswapRouter;
         }
+    }
+    
+    // 0 for sushi (default), 1 for 1inch, 2 for uniswap (probably will never use)
+    function setLdoRouter(uint256 _router) external onlyAuthorized {
+        if (_router == 0) {
+            ldoRouter = sushiswapRouter;
+        } else if (_router == 1) {
+            ldoRouter = oneInchPool;
+        } else {
+            ldoRouter = uniswapRouter;
+        }
+    }
+    
+    // update the address for our 1inch pool (used to swap LDO to stETH)
+    function update1InchPoolAddress(address newAddress) public onlyGovernance {
+        oneInchPool = newAddress;
+    }
+    
+    // update our referral address for 1inch
+    function updateReferral(address _referral) public onlyAuthorized {
+        referral = _referral;
     }
 
     // Unless contract is borked for some reason, we should always harvest extra tokens

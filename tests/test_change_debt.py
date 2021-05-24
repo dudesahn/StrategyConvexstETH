@@ -3,7 +3,7 @@ from brownie import Contract
 from brownie import config
 
 # test passes as of 21-05-20
-def test_change_debt(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexsETH):
+def test_change_debt(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, curveVoterProxyStrategy):
     ## deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
@@ -25,7 +25,8 @@ def test_change_debt(gov, token, vault, dudesahn, strategist, whale, strategy, c
     strategy.harvest({"from": dudesahn})
     assert rewardsContract.balanceOf(strategy) >= startingLive
 
-    # wait for share price to return to normal
+    # simulate a day of waiting for share price to bump back up
+    curveVoterProxyStrategy.harvest({"from": gov})
     chain.sleep(86400)
     chain.mine(1)
     

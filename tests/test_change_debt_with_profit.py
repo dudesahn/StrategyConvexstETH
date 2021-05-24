@@ -3,7 +3,7 @@ from brownie import Wei
 from pytest import approx
 
 
-def test_change_debt_with_profit(gov, token, vault, dudesahn, whale, strategy):
+def test_change_debt_with_profit(gov, token, vault, dudesahn, whale, strategy, curveVoterProxyStrategy):
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
     vault.deposit(100e18, {"from": whale})
     strategy.harvest({"from": dudesahn})
@@ -11,6 +11,9 @@ def test_change_debt_with_profit(gov, token, vault, dudesahn, whale, strategy):
 
     vault.updateStrategyDebtRatio(strategy, 12, {"from": gov})
     token.transfer(strategy, Wei("100 ether"), {"from": whale})
+    
+    # need to harvest our other strategy first so we don't pay all of the management fee from this strategy
+    curveVoterProxyStrategy.harvest({"from": gov})
     strategy.harvest({"from": dudesahn})
     new_params = vault.strategies(strategy).dict()
 
