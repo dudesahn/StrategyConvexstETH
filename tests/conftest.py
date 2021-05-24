@@ -127,7 +127,7 @@ def strategy(strategist, keeper, vault, StrategyConvexstETH, gov, curveVoterProx
     curveVoterProxyStrategy.harvest({"from": gov})
     # set management fee to zero so we don't need to worry about this messing up pps
     vault.setManagementFee(0, {"from": gov})
-    vault.addStrategy(strategy, 25, 1000000000000000000000000000, 1000, {"from": gov})
+    vault.addStrategy(strategy, 25, 0, 1000, {"from": gov})
     strategy.setStrategist('0x8Ef63b525fceF7f8662D98F77f5C9A86ae7dFE09', {"from": gov})
     strategy.harvest({"from": gov})
     yield strategy
