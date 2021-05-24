@@ -13,10 +13,7 @@ import "@openzeppelin/contracts/math/Math.sol";
 import "./interfaces/oneinch.sol";
 import "./interfaces/curve.sol";
 import {IUniswapV2Router02} from "./interfaces/uniswap.sol";
-import {
-    BaseStrategy,
-    StrategyParams
-} from "@yearnvaults/contracts/BaseStrategy.sol";
+import "./BaseStrategyEdited.sol";
 
 /* ========== INTERFACES ========== */
 
@@ -63,7 +60,7 @@ interface IExtraRewards {
 
 /* ========== CONTRACT ========== */
 
-contract StrategyConvexstETH is BaseStrategy {
+contract StrategyConvexstETH is BaseStrategyEdited {
     using SafeERC20 for IERC20;
     using Address for address;
     using SafeMath for uint256;
@@ -108,7 +105,6 @@ contract StrategyConvexstETH is BaseStrategy {
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address public oneInchPool = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae;
     address public referral = 0xBedf3Cf16ba1FcE6c3B751903Cf77E51d51E05b8;
-    uint256 public minDelay; // named this differently because I didn't want to confuse it with minReportDelay, but it does the same thing for a 0.3.0 strategy
 
     // convex-specific variables
     bool public harvestExtras = true; // boolean to determine if we should always claim extra rewards during getReward (generally this should be true)
@@ -121,7 +117,7 @@ contract StrategyConvexstETH is BaseStrategy {
     uint256 public tendsPerHarvest; // how many tends we call before we harvest. set to 0 to never call tends.
     uint256 internal harvestNow; // 0 for false, 1 for true if we are mid-harvest. this is used to differentiate tends vs harvests in adjustPosition
 
-    constructor(address _vault) public BaseStrategy(_vault) {
+    constructor(address _vault) public BaseStrategyEdited(_vault) {
         // You can set these parameters on deployment to whatever you want
         maxReportDelay = 172800; // 2 days in seconds, if we hit this then harvestTrigger = True
         debtThreshold = 1000 * 1e18; // we shouldn't ever have debt, but set a bit of a buffer
@@ -436,7 +432,7 @@ contract StrategyConvexstETH is BaseStrategy {
         if (params.activation == 0) return false;
 
         // Should not trigger if we haven't waited long enough since previous harvest
-        if (block.timestamp.sub(params.lastReport) < minDelay) return false;
+        if (block.timestamp.sub(params.lastReport) < minReportDelay) return false;
 
         // Should trigger if hasn't been called in a while
         if (block.timestamp.sub(params.lastReport) >= maxReportDelay)
@@ -492,7 +488,7 @@ contract StrategyConvexstETH is BaseStrategy {
         // we are assuming here that keepers will essentially call tend as soon as this is true
         if (
             block.timestamp.sub(params.lastReport) >
-            (minDelay.div((tendCounter.add(1)).mul(tendsPerHarvest.add(1))))
+            (minReportDelay.div((tendCounter.add(1)).mul(tendsPerHarvest.add(1))))
         ) return true;
     }
 
