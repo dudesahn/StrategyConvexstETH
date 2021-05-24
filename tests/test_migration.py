@@ -7,10 +7,11 @@ from brownie import config
 #       Show that nothing is lost!
 
 # test passes as of 21-05-20
-def test_migration(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexstETH):
+def test_migration(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexstETH, curveVoterProxyStrategy):
     # deploy our new strategy
     new_strategy = dudesahn.deploy(StrategyConvexstETH, vault)
     total_old = strategy.estimatedTotalAssets()
+    total_old_proxy = curveVoterProxyStrategy.estimatedTotalAssets()
 
     # migrate our old strategy
     vault.migrateStrategy(strategy, new_strategy, {"from": gov})
@@ -22,7 +23,9 @@ def test_migration(gov, token, vault, dudesahn, strategist, whale, strategy, cha
     # harvest to get funds back in strategy
     new_strategy.harvest({"from": dudesahn})
     new_strat_balance = new_strategy.estimatedTotalAssets()
-    assert new_strat_balance == total_old
+    total_new_proxy = curveVoterProxyStrategy.estimatedTotalAssets()
+    assert total_new_proxy == total_old_proxy
+    assert new_strat_balance >= total_old
     
     startingVault = vault.totalAssets()
     print("\nVault starting assets with new strategy: ", startingVault)
@@ -35,7 +38,8 @@ def test_migration(gov, token, vault, dudesahn, strategist, whale, strategy, cha
     new_strategy.tend({"from": dudesahn})
     assert new_strategy.tendCounter() == 1
     
-    # simulate a day of earnings
+    # simulate a day of waiting for share price to bump back up
+    curveVoterProxyStrategy.harvest({"from": gov})
     chain.sleep(86400)
     chain.mine(1)
     

@@ -208,11 +208,11 @@ contract StrategyConvexstETH is BaseStrategy {
             if (convexBalance > 0) _sellConvex(convexBalance);
             if (lidoBalance > 0) _sellLido(lidoBalance);
 
-            uint256 balance = address(this).balance;
-            uint256 balance2 = stETH.balanceOf(address(this));
+            uint256 ethBalance = address(this).balance;
+            uint256 stETHBalance = stETH.balanceOf(address(this));
 
-            if(balance > 0 || balance2 > 0){
-                curve.add_liquidity{value: balance}([balance, balance2], 0);
+            if(ethBalance > 0 || stETHBalance > 0){
+                curve.add_liquidity{value: ethBalance}([ethBalance, stETHBalance], 0);
             }
         }
         // this is a harvest, so set our switch equal to 1 so this
@@ -337,7 +337,7 @@ contract StrategyConvexstETH is BaseStrategy {
 
     // Sells our harvested CVX into the selected output (ETH).
     function _sellConvex(uint256 _convexAmount) internal {
-        IUniswapV2Router02(crvRouter).swapExactTokensForETH(
+        IUniswapV2Router02(cvxRouter).swapExactTokensForETH(
             _convexAmount,
             uint256(0),
             convexTokenPath,
@@ -513,7 +513,7 @@ contract StrategyConvexstETH is BaseStrategy {
         uint256 maxSupply = 100 * 1000000 * 1e18; // 100mil
         uint256 reductionPerCliff = 100000000000000000000000; // 100,000
         uint256 supply = convexToken.totalSupply();
-        uint256 mintableCvx = 0;
+        uint256 mintableCvx;
 
         uint256 cliff = supply.div(reductionPerCliff);
         //mint if below total cliffs
@@ -521,7 +521,7 @@ contract StrategyConvexstETH is BaseStrategy {
             //for reduction% take inverse of current cliff
             uint256 reduction = totalCliffs.sub(cliff);
             //reduce
-            uint256 mintableCvx = claimableCrv.mul(reduction).div(totalCliffs);
+            mintableCvx = claimableCrv.mul(reduction).div(totalCliffs);
 
             //supply cap check
             uint256 amtTillMax = maxSupply.sub(supply);
@@ -529,16 +529,18 @@ contract StrategyConvexstETH is BaseStrategy {
                 mintableCvx = amtTillMax;
             }
         }
+        
+        uint256 crvValue;
+        if (claimableCrv > 0) {
+        	uint256[] memory crvSwap =
+            	IUniswapV2Router02(crvRouter).getAmountsOut(
+                	claimableCrv,
+                	crvPath
+            	);
+        	crvValue = crvSwap[2];
+        }
 
-        uint256[] memory crvSwap =
-            IUniswapV2Router02(crvRouter).getAmountsOut(
-                claimableCrv,
-                crvPath
-            );
-        uint256 crvValue = crvSwap[2];
-
-        uint256 cvxValue = 0;
-
+        uint256 cvxValue;
         if (mintableCvx > 0) {
             uint256[] memory cvxSwap =
                 IUniswapV2Router02(cvxRouter).getAmountsOut(
@@ -546,15 +548,18 @@ contract StrategyConvexstETH is BaseStrategy {
                     convexTokenPath
                 );
             cvxValue = cvxSwap[2];
-            }
+        }
             
+        uint256 ldoValue;
         uint256 claimableLdo = IExtraRewards(extraRewardsContract).earned(address(this));
-        uint256[] memory ldoSwap =
-            IUniswapV2Router02(sushiswapRouter).getAmountsOut(
-                claimableLdo,
-                ldoPath
-            );
-        uint256 ldoValue = ldoSwap[2];
+        if (claimableLdo > 0) {
+        	uint256[] memory ldoSwap =
+            	IUniswapV2Router02(sushiswapRouter).getAmountsOut(
+                	claimableLdo,
+                	ldoPath
+            	);
+        	ldoValue = ldoSwap[2];
+        }
         
         return crvValue.add(cvxValue).add(ldoValue); // dollar value of our harvest
     }

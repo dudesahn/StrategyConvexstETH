@@ -99,6 +99,12 @@ def whale(accounts):
     yield whale
 
 @pytest.fixture
+def lidoWhale(accounts):
+    # Totally in it for the tech (hold >100k LDO)
+    lidoWhale = accounts.at('0x13f137D638C4A7e31daD7789E3977b616BA39B12', force=True)
+    yield lidoWhale
+
+@pytest.fixture
 def convexWhale(accounts):
     # Totally in it for the tech (largest EOA holder of CVX, ~8k tokens)
     convexWhale = accounts.at('0xC55c7d2816C3a1BCD452493aA99EF11213b0cD3a', force=True)
