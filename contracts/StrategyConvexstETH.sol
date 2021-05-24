@@ -61,7 +61,6 @@ interface IExtraRewards {
     function earned(address account) external view returns (uint256);
 }
 
-
 /* ========== CONTRACT ========== */
 
 contract StrategyConvexstETH is BaseStrategy {
@@ -81,7 +80,8 @@ contract StrategyConvexstETH is BaseStrategy {
 
     address public depositContract = 0xF403C135812408BFbE8713b5A23a04b3D48AAE31; // this is the deposit contract that all pools use, aka booster
     address public rewardsContract = 0x0A760466E1B4621579a82a39CB56Dda2F4E70f03; // This is unique to each curve pool, this one is for stETH pool
-    address public extraRewardsContract = 0x008aEa5036b819B4FEAEd10b2190FBb3954981E8; // this is where LDO is stashed before it is distributed
+    address public extraRewardsContract =
+        0x008aEa5036b819B4FEAEd10b2190FBb3954981E8; // this is where LDO is stashed before it is distributed
     uint256 public pid = 25; // this is unique to each pool, this is the one for stETH, aka steCRV
 
     // Swap stuff
@@ -140,7 +140,7 @@ contract StrategyConvexstETH is BaseStrategy {
         lido.safeApprove(uniswapRouter, type(uint256).max);
         lido.safeApprove(sushiswapRouter, type(uint256).max);
         lido.safeApprove(oneInchPool, type(uint256).max);
-        
+
         // crv token path
         crvPath = new address[](2);
         crvPath[0] = address(crv);
@@ -150,12 +150,11 @@ contract StrategyConvexstETH is BaseStrategy {
         convexTokenPath = new address[](2);
         convexTokenPath[0] = address(convexToken);
         convexTokenPath[1] = address(weth);
-        
+
         // lido token path
         ldoPath = new address[](2);
         ldoPath[0] = address(lido);
         ldoPath[1] = address(weth);
-        
     }
 
     function name() external view override returns (string memory) {
@@ -211,8 +210,11 @@ contract StrategyConvexstETH is BaseStrategy {
             uint256 ethBalance = address(this).balance;
             uint256 stETHBalance = stETH.balanceOf(address(this));
 
-            if(ethBalance > 0 || stETHBalance > 0){
-                curve.add_liquidity{value: ethBalance}([ethBalance, stETHBalance], 0);
+            if (ethBalance > 0 || stETHBalance > 0) {
+                curve.add_liquidity{value: ethBalance}(
+                    [ethBalance, stETHBalance],
+                    0
+                );
             }
         }
         // this is a harvest, so set our switch equal to 1 so this
@@ -287,7 +289,7 @@ contract StrategyConvexstETH is BaseStrategy {
                 _sellCrv(crvRemainder);
                 if (convexBalance > 0) _sellConvex(convexBalance);
                 if (lidoBalance > 0) _sellLido(lidoBalance);
-                
+
                 // increase our tend counter by 1 so we can know when we should harvest again
                 uint256 previousTendCounter = tendCounter;
                 tendCounter = previousTendCounter.add(1);
@@ -319,8 +321,8 @@ contract StrategyConvexstETH is BaseStrategy {
                 _loss = debt.sub(assets);
             }
         } else {
-          // we have enough balance to cover the liquidation available
-          return (_amountNeeded, 0);
+            // we have enough balance to cover the liquidation available
+            return (_amountNeeded, 0);
         }
     }
 
@@ -345,14 +347,26 @@ contract StrategyConvexstETH is BaseStrategy {
             now
         );
     }
-    
+
     // Sells our harvested LDO into the selected output (ETH or stETH).
     function _sellLido(uint256 _lidoAmount) internal {
-        if(ldoRouter == oneInchPool){
+        if (ldoRouter == oneInchPool) {
             //we sell to stETH
-            IOneInch(oneInchPool).swap(address(lido), address(stETH), _lidoAmount, 1, referral);
-        }else{
-            IUniswapV2Router02(ldoRouter).swapExactTokensForETH(_lidoAmount, uint256(0), ldoPath, address(this), now);
+            IOneInch(oneInchPool).swap(
+                address(lido),
+                address(stETH),
+                _lidoAmount,
+                1,
+                referral
+            );
+        } else {
+            IUniswapV2Router02(ldoRouter).swapExactTokensForETH(
+                _lidoAmount,
+                uint256(0),
+                ldoPath,
+                address(this),
+                now
+            );
         }
     }
 
@@ -422,8 +436,7 @@ contract StrategyConvexstETH is BaseStrategy {
         if (params.activation == 0) return false;
 
         // Should not trigger if we haven't waited long enough since previous harvest
-        if (block.timestamp.sub(params.lastReport) < minDelay)
-            return false;
+        if (block.timestamp.sub(params.lastReport) < minDelay) return false;
 
         // Should trigger if hasn't been called in a while
         if (block.timestamp.sub(params.lastReport) >= maxReportDelay)
@@ -454,7 +467,7 @@ contract StrategyConvexstETH is BaseStrategy {
 
         // check if it makes sense to send funds from vault to strategy
         uint256 credit = vault.creditAvailable();
-        return (profitFactor.mul(callCost) < credit.add(profit));
+        if (profitFactor.mul(callCost) < credit.add(profit)) return true;
 
         // calculate how much profit we'll make if we harvest
         uint256 harvestProfit = claimableProfitInDolla();
@@ -479,11 +492,7 @@ contract StrategyConvexstETH is BaseStrategy {
         // we are assuming here that keepers will essentially call tend as soon as this is true
         if (
             block.timestamp.sub(params.lastReport) >
-            (
-                minDelay.div(
-                    (tendCounter.add(1)).mul(tendsPerHarvest.add(1))
-                )
-            )
+            (minDelay.div((tendCounter.add(1)).mul(tendsPerHarvest.add(1))))
         ) return true;
     }
 
@@ -529,15 +538,12 @@ contract StrategyConvexstETH is BaseStrategy {
                 mintableCvx = amtTillMax;
             }
         }
-        
+
         uint256 crvValue;
         if (claimableCrv > 0) {
         	uint256[] memory crvSwap =
-            	IUniswapV2Router02(crvRouter).getAmountsOut(
-                	claimableCrv,
-                	crvPath
-            	);
-        	crvValue = crvSwap[2];
+            	IUniswapV2Router02(crvRouter).getAmountsOut(claimableCrv, crvPath);
+        	crvValue = crvSwap[1];
         }
 
         uint256 cvxValue;
@@ -547,21 +553,21 @@ contract StrategyConvexstETH is BaseStrategy {
                     mintableCvx,
                     convexTokenPath
                 );
-            cvxValue = cvxSwap[2];
+            cvxValue = cvxSwap[1];
         }
-            
+
         uint256 ldoValue;
-        uint256 claimableLdo = IExtraRewards(extraRewardsContract).earned(address(this));
+        uint256 claimableLdo =
+            IExtraRewards(extraRewardsContract).earned(address(this));
         if (claimableLdo > 0) {
-        	uint256[] memory ldoSwap =
-            	IUniswapV2Router02(sushiswapRouter).getAmountsOut(
-                	claimableLdo,
-                	ldoPath
-            	);
-        	ldoValue = ldoSwap[2];
+            uint256[] memory ldoSwap =
+                IUniswapV2Router02(sushiswapRouter).getAmountsOut(
+                    claimableLdo,
+                    ldoPath
+                );
+            ldoValue = ldoSwap[1];
         }
-        
-        return crvValue.add(cvxValue).add(ldoValue); // dollar value of our harvest
+        return (crvValue.add(cvxValue).add(ldoValue)).mul(ethToDollaBill(1e18).div(1e18)); // dollar value of our harvest
     }
 
     // set number of tends before we call our next harvest
@@ -610,7 +616,7 @@ contract StrategyConvexstETH is BaseStrategy {
             cvxRouter = uniswapRouter;
         }
     }
-    
+
     // 0 for sushi (default), 1 for 1inch, 2 for uniswap (probably will never use)
     function setLdoRouter(uint256 _router) external onlyAuthorized {
         if (_router == 0) {
@@ -621,12 +627,12 @@ contract StrategyConvexstETH is BaseStrategy {
             ldoRouter = uniswapRouter;
         }
     }
-    
+
     // update the address for our 1inch pool (used to swap LDO to stETH)
     function update1InchPoolAddress(address newAddress) public onlyGovernance {
         oneInchPool = newAddress;
     }
-    
+
     // update our referral address for 1inch
     function updateReferral(address _referral) public onlyAuthorized {
         referral = _referral;

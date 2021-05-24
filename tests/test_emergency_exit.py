@@ -4,7 +4,7 @@ from brownie import config
 
 # test passes as of 21-05-20. for this strategy (maybe since it's v3.0.0?), easiest just to comment out each test and do them one at a time
 def test_emergency_exit(gov, token, vault, dudesahn, strategist, whale, strategy, chain, strategist_ms, rewardsContract, StrategyConvexstETH, curveVoterProxyStrategy):
-    ## deposit to the vault after approving
+    # deposit to the vault after approving
     startingWhale = token.balanceOf(whale)
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
     vault.deposit(100e18, {"from": whale})

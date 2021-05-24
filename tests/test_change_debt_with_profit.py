@@ -5,12 +5,12 @@ from pytest import approx
 
 def test_change_debt_with_profit(gov, token, vault, dudesahn, whale, strategy, curveVoterProxyStrategy):
     token.approve(vault, 2 ** 256 - 1, {"from": whale})
-    vault.deposit(100e18, {"from": whale})
+    vault.deposit(10e18, {"from": whale})
     strategy.harvest({"from": dudesahn})
     prev_params = vault.strategies(strategy).dict()
 
     vault.updateStrategyDebtRatio(strategy, 12, {"from": gov})
-    token.transfer(strategy, Wei("100 ether"), {"from": whale})
+    token.transfer(strategy, Wei("10 ether"), {"from": whale})
     
     # need to harvest our other strategy first so we don't pay all of the management fee from this strategy
     curveVoterProxyStrategy.harvest({"from": gov})
@@ -18,7 +18,7 @@ def test_change_debt_with_profit(gov, token, vault, dudesahn, whale, strategy, c
     new_params = vault.strategies(strategy).dict()
 
     assert new_params["totalGain"] > prev_params["totalGain"]
-    assert new_params["totalGain"] - prev_params["totalGain"] > Wei("100 ether")
+    assert new_params["totalGain"] - prev_params["totalGain"] > Wei("10 ether")
     assert new_params["debtRatio"] == 12
     assert new_params["totalLoss"] == prev_params["totalLoss"]
     assert approx(vault.totalAssets() * 0.012, Wei("1 ether")) == strategy.estimatedTotalAssets()

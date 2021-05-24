@@ -94,8 +94,8 @@ def strategist_ms(accounts):
 
 @pytest.fixture
 def whale(accounts):
-    # Totally in it for the tech (largest EOA holder of stETH pool token, ~73k stETH)
-    whale = accounts.at('0xdb5AA12AD695Ef2a28C6CdB69f2BB04BEd20a48e', force=True)
+    # Totally in it for the tech (largest EOA holder of stETH pool token, ~100 crvstETH)
+    whale = accounts.at('0xBF9fE291C11aD72fDFec64F15aC93B3C1F071F61', force=True)
     yield whale
 
 @pytest.fixture
