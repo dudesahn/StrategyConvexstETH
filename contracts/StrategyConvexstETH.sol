@@ -107,7 +107,7 @@ contract StrategyConvexstETH is BaseStrategy {
     address private constant uniswapRouter =
         0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
     address public oneInchPool = 0x1f629794B34FFb3B29FF206Be5478A52678b47ae;
-    address public referral = 0xC3D6880fD95E06C816cB030fAc45b3ffe3651Cb0;
+    address public referral = 0xBedf3Cf16ba1FcE6c3B751903Cf77E51d51E05b8;
     uint256 public minDelay; // named this differently because I didn't want to confuse it with minReportDelay, but it does the same thing for a 0.3.0 strategy
 
     // convex-specific variables
